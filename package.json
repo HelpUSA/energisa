@@ -6,8 +6,7 @@
   "scripts": {
     "start": "python -m http.server 5173",
     "check": "node --check app.js && node --check api/health.js && node --check api/summary.js && node --check api/imports.js && node --check db/client.js",
-    "dev": "vercel dev",
-    "build": "echo Static app - no build step"
+    "dev": "vercel dev"
   },
   "dependencies": {
     "pg": "^8.13.1"
