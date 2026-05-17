@@ -1,130 +1,26 @@
-
-let rows=[], heads=[], anom=[];
-const $ = id => document.getElementById(id);
-function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
-function toNum(v){
-  let s=String(v??'').trim().replace(/\./g,'').replace(',','.').replace(/[^0-9.-]/g,'');
-  return parseFloat(s);
-}
-function ym(v){
-  if(v instanceof Date && !isNaN(v)) return v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0');
-  let s=String(v??'').trim();
-  let m=s.match(/^(\d{1,2})[\/.-](\d{4})$/); if(m) return m[2]+'-'+String(m[1]).padStart(2,'0');
-  m=s.match(/^(\d{4})[\/.-](\d{1,2})/); if(m) return m[1]+'-'+String(m[2]).padStart(2,'0');
-  m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
-  if(m){let y=+m[3]; if(y<100)y+=2000; return y+'-'+String(m[2]).padStart(2,'0')}
-  return s;
-}
-function parseCSV(t){
-  let out=[], row=[], cell='', q=false;
-  for(let i=0;i<t.length;i++){
-    let c=t[i], n=t[i+1];
-    if(c=='"' && q && n=='"'){cell+='"'; i++}
-    else if(c=='"'){q=!q}
-    else if((c==','||c==';'||c=='\t') && !q){row.push(cell); cell=''}
-    else if((c=='\n'||c=='\r') && !q){
-      if(c=='\r' && n=='\n') i++;
-      row.push(cell);
-      if(row.some(x=>String(x).trim())) out.push(row);
-      row=[]; cell='';
-    } else cell+=c;
-  }
-  row.push(cell);
-  if(row.some(x=>String(x).trim())) out.push(row);
-  return out;
-}
-function fill(sel){sel.innerHTML=''; heads.forEach(h=>{let o=document.createElement('option'); o.value=h; o.textContent=h; sel.appendChild(o)})}
-function guess(keys){
-  let ns=heads.map(norm);
-  for(let k of keys){let i=ns.findIndex(x=>x.includes(k)); if(i>=0) return heads[i]}
-  return heads[0]||'';
-}
-async function loadFile(f){
-  let ext=f.name.split('.').pop().toLowerCase();
-  if(ext==='csv'){
-    let arr=parseCSV(await f.text());
-    heads=(arr.shift()||[]).map(x=>String(x).trim());
-    rows=arr.map(r=>Object.fromEntries(heads.map((h,i)=>[h,r[i]??''])));
-  } else {
-    if(!window.XLSX){alert('Biblioteca XLSX não carregou. Exporte como CSV ou conecte à internet.'); return}
-    let ab=await f.arrayBuffer();
-    let wb=XLSX.read(ab,{type:'array',cellDates:true});
-    let ws=wb.Sheets[wb.SheetNames[0]];
-    rows=XLSX.utils.sheet_to_json(ws,{defval:''});
-    heads=Object.keys(rows[0]||{});
-  }
-  fill($('uc')); fill($('ref')); fill($('kwh'));
-  $('uc').value=guess(['unidade','uc','cliente','instalacao','instalacao','medidor']);
-  $('ref').value=guess(['referencia','mes','data','periodo']);
-  $('kwh').value=guess(['consumo','kwh','energia']);
-  $('status').textContent='Arquivo carregado: '+rows.length+' linhas, '+heads.length+' colunas.';
-  renderRaw(); analisar();
-}
-function median(a){
-  a=a.filter(Number.isFinite).sort((x,y)=>x-y);
-  if(!a.length) return NaN;
-  let m=Math.floor(a.length/2);
-  return a.length%2?a[m]:(a[m-1]+a[m])/2;
-}
-function add(sev,t,u,r,v,b,rel,m){anom.push({sev,t,u,r,v,b,rel,m})}
-function analisar(){
-  let cu=$('uc').value, cr=$('ref').value, ck=$('kwh').value, pct=+$('pct').value||45;
-  let g={}; anom=[];
-  rows.forEach(row=>{
-    let u=String(row[cu]||'SEM_UNIDADE').trim();
-    let r=ym(row[cr]);
-    let v=toNum(row[ck]);
-    (g[u]??=[]).push({u,r,v});
-  });
-  for(let u in g){
-    let arr=g[u].sort((a,b)=>a.r.localeCompare(b.r));
-    let vals=arr.map(x=>x.v).filter(x=>Number.isFinite(x)&&x>=0);
-    let base=median(vals);
-    let mad=median(vals.map(v=>Math.abs(v-base)));
-    let spread=mad*1.4826 || Math.max(1, base*0.10);
-    arr.forEach(x=>{
-      let rel=base?((x.v-base)/base*100):0;
-      if(!Number.isFinite(x.v)) add('Alta','consumo inválido',u,x.r,x.v,base,'','Valor não numérico');
-      else if(x.v<0) add('Alta','consumo negativo',u,x.r,x.v,base,'','Valor negativo');
-      else if(x.v===0 && base>20) add('Alta','consumo zerado',u,x.r,x.v,base,-100,'Zero com histórico relevante');
-      else if(x.v>base+3*spread || rel>pct) add(Math.abs(rel)>100?'Alta':'Média','consumo acima do normal',u,x.r,x.v,base,rel,'Acima da base histórica');
-      else if(x.v<base-3*spread || rel<-pct) add(Math.abs(rel)>70?'Alta':'Média','consumo abaixo do normal',u,x.r,x.v,base,rel,'Abaixo da base histórica');
-    });
-    for(let i=1;i<arr.length;i++){
-      let a=arr[i-1].r.split('-').map(Number), b=arr[i].r.split('-').map(Number);
-      if(a.length>=2 && b.length>=2 && a.every(Number.isFinite) && b.every(Number.isFinite)){
-        let d=(b[0]-a[0])*12+(b[1]-a[1]);
-        if(d>1) add('Baixa','mês ausente',u,arr[i-1].r+' até '+arr[i].r,'',base,'',(d-1)+' mês(es) sem registro');
-      }
-    }
-  }
-  render(g);
-}
-function fmt(v){return Number.isFinite(+v)?Number(v).toLocaleString('pt-BR',{maximumFractionDigits:2}):String(v??'')}
-function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function render(g){
-  $('mRows').textContent=rows.length;
-  $('mUnits').textContent=Object.keys(g||{}).length;
-  $('mAnom').textContent=anom.length;
-  $('mHigh').textContent=anom.filter(a=>a.sev==='Alta').length;
-  $('out').innerHTML=anom.map(a=>{
-    let cls=a.sev==='Alta'?'alta':(a.sev==='Média'?'media':'baixa');
-    let rel=Number.isFinite(a.rel)?a.rel.toFixed(1)+'%':'';
-    return '<tr><td class="'+cls+'">'+esc(a.sev)+'</td><td>'+esc(a.t)+'</td><td>'+esc(a.u)+'</td><td>'+esc(a.r)+'</td><td>'+esc(fmt(a.v))+'</td><td>'+esc(fmt(a.b))+'</td><td>'+esc(rel)+'</td><td>'+esc(a.m)+'</td></tr>';
-  }).join('');
-}
-function renderRaw(){
-  let h=heads.map(x=>'<th>'+esc(x)+'</th>').join('');
-  let b=rows.slice(0,100).map(r=>'<tr>'+heads.map(k=>'<td>'+esc(r[k])+'</td>').join('')+'</tr>').join('');
-  $('raw').innerHTML='<thead><tr>'+h+'</tr></thead><tbody>'+b+'</tbody>';
-}
-function exportar(){
-  let h=['Severidade','Tipo','Unidade','Referencia','Consumo','Base','Variacao_pct','Motivo'];
-  let lines=[h.join(';')].concat(anom.map(a=>[a.sev,a.t,a.u,a.r,a.v,a.b,a.rel,a.m].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(';')));
-  let blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  let url=URL.createObjectURL(blob), a=document.createElement('a');
-  a.href=url; a.download='anomalias_energisa.csv'; a.click(); URL.revokeObjectURL(url);
-}
-$('file').onchange=e=>e.target.files[0]&&loadFile(e.target.files[0]);
-$('go').onclick=analisar;
-$('exp').onclick=exportar;
+const $=id=>document.getElementById(id),N=new Intl.NumberFormat('pt-BR',{maximumFractionDigits:1});
+let S={readings:[],imports:[],anomalies:[],preview:null,charts:{}};
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(window.tt);window.tt=setTimeout(()=>t.classList.remove('show'),3500)}
+function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')}
+function pick(h,ps){let a=h.map(x=>({o:x,n:norm(x)}));for(const p of ps){let f=a.find(x=>p.test(x.n));if(f)return f.o}return null}
+function num(v){if(v==null||v==='')return null;if(typeof v==='number')return v;let s=String(v).replace(/[^0-9,.-]/g,'');if(!s)return null;if(s.includes(',')&&s.includes('.'))s=s.lastIndexOf(',')>s.lastIndexOf('.')?s.replace(/\./g,'').replace(',','.'):s.replace(/,/g,'');else if(s.includes(','))s=s.replace(',','.');let n=Number(s);return Number.isFinite(n)?n:null}
+function mon(v){if(!v)return null;let s=String(v).trim().toLowerCase(),m=s.match(/^(\d{4})[-/](\d{1,2})/)||s.match(/(\d{1,2})[-/](\d{4})$/);if(m)return m[1].length===4?`${m[1]}-${String(+m[2]).padStart(2,'0')}-01`:`${m[2]}-${String(+m[1]).padStart(2,'0')}-01`;let d=s.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);if(d)return`${d[3]}-${String(+d[2]).padStart(2,'0')}-01`;let M={jan:'01',janeiro:'01',fev:'02',fevereiro:'02',mar:'03',marco:'03',abr:'04',abril:'04',mai:'05',maio:'05',jun:'06',junho:'06',jul:'07',julho:'07',ago:'08',agosto:'08',set:'09',setembro:'09',out:'10',outubro:'10',nov:'11',novembro:'11',dez:'12',dezembro:'12'};let p=s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').split(/[ /\-]+/),y=p.find(x=>/^\d{4}$/.test(x)),mo=p.find(x=>M[x]);return y&&mo?`${y}-${M[mo]}-01`:null}
+function ml(x){if(!x)return'-';let[a,b]=String(x).slice(0,7).split('-');return`${b}/${a}`}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function hash(f){let b=await f.arrayBuffer(),d=await crypto.subtle.digest('SHA-256',b);return[...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,'0')).join('')}
+async function api(p,o={}){let r=await fetch(p,{headers:{'Content-Type':'application/json'},...o}),t=await r.text(),j={};try{j=t?JSON.parse(t):{}}catch{j={raw:t}}if(!r.ok)throw Error(j.error||r.status);return j}
+async function parseFile(f){let b=await f.arrayBuffer(),wb=XLSX.read(b,{type:'array',cellDates:true}),sh=wb.Sheets[wb.SheetNames[0]],raw=XLSX.utils.sheet_to_json(sh,{defval:null,raw:false}),h=Object.keys(raw[0]||{}),c={unit:pick(h,[/unidade|cliente|local|nome/]),uc:pick(h,[/^uc$|unidade_consumidora|conta|instalacao|codigo/]),month:pick(h,[/referencia|competencia|mes|periodo|data/]),cons:pick(h,[/consumo.*kwh|kwh|energia|consumo/]),amount:pick(h,[/valor.*total|total|valor|reais|brl/]),demand:pick(h,[/demanda|kw/])};let rows=raw.map((r,i)=>{let u=c.unit?r[c.unit]:'',uc=c.uc?r[c.uc]:u||`linha-${i+1}`;return{unit_name:String(u||uc||`Linha ${i+1}`).trim(),uc:String(uc||u||`linha-${i+1}`).trim(),reference_month:mon(c.month?r[c.month]:null),consumption_kwh:num(c.cons?r[c.cons]:null),amount_brl:num(c.amount?r[c.amount]:null),demand_kw:num(c.demand?r[c.demand]:null),raw:r}}).filter(r=>r.reference_month&&r.consumption_kwh!=null);return{raw,rows,columns:c,sheet:wb.SheetNames[0],file_hash:await hash(f),file_name:f.name}}
+async function health(){try{let j=await api('/api/health');$('dbStatusText').textContent=j.ok?'Conectado':'Indisponível';$('dbStatusDetail').textContent=j.database||j.message||'PostgreSQL'}catch(e){$('dbStatusText').textContent='Sem conexão';$('dbStatusDetail').textContent=e.message}}
+async function load(){try{let j=await api('/api/summary');S.readings=j.readings||[];S.imports=j.imports||[];S.anomalies=j.anomalies||[]}catch{S.readings=[];S.imports=[];S.anomalies=[]}render()}
+function fr(){let u=$('unitFilter').value;return S.readings.filter(r=>!u||r.uc===u||r.unit_name===u)}
+function fa(){let u=$('unitFilter').value,s=$('severityFilter').value;return S.anomalies.filter(a=>(!u||a.uc===u||a.unit_name===u)&&(!s||a.severity===s))}
+function render(){let cur=$('unitFilter').value,us=[...new Set(S.readings.map(r=>r.uc||r.unit_name).filter(Boolean))].sort();$('unitFilter').innerHTML='<option value="">Todas as unidades</option>'+us.map(u=>`<option value="${esc(u)}">${esc(u)}</option>`).join('');$('unitFilter').value=us.includes(cur)?cur:'';let r=fr(),a=fa(),months=[...new Set(r.map(x=>String(x.reference_month).slice(0,7)))].sort();$('metricUnits').textContent=N.format(new Set(r.map(x=>x.uc||x.unit_name)).size);$('metricMonths').textContent=N.format(months.length);$('metricKwh').textContent=N.format(r.reduce((s,x)=>s+Number(x.consumption_kwh||0),0));$('metricAnomalies').textContent=N.format(a.length);$('coverageLabel').textContent=months.length?`${ml(months[0])} a ${ml(months.at(-1))}`:'Sem dados';if(S.imports[0])$('lastImportLabel').textContent=`Último arquivo: ${S.imports[0].file_name}`;
+$('importsTable').innerHTML=S.imports.slice(0,50).map(i=>`<tr><td>${new Date(i.imported_at).toLocaleString('pt-BR')}</td><td>${esc(i.file_name)}</td><td>${N.format(+i.row_count||0)}</td><td>${ml(i.period_start)} - ${ml(i.period_end)}</td><td>${esc(i.status||'ok')}</td></tr>`).join('')||'<tr><td colspan="5">Nenhuma importação gravada.</td></tr>';
+$('anomaliesTable').innerHTML=a.slice(0,100).map(x=>`<tr><td><span class="badge ${x.severity}">${x.severity==='critical'?'Crítica':x.severity==='high'?'Alta':'Média'}</span></td><td>${esc(x.uc)}</td><td>${esc(x.unit_name)}</td><td>${ml(x.reference_month)}</td><td>${N.format(+x.consumption_kwh||0)}</td><td>${N.format(+x.baseline_kwh||0)}</td><td>${N.format(+x.variation_pct||0)}%</td><td>${esc(x.type)}</td></tr>`).join('')||'<tr><td colspan="8">Nenhuma anomalia encontrada.</td></tr>';charts(r,a)}
+function chart(id,type,labels,data,label){if(!window.Chart)return;if(S.charts[id])S.charts[id].destroy();S.charts[id]=new Chart($(id),{type,data:{labels,datasets:[{label,data,tension:.35,borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#dff6ff'}}},scales:type==='doughnut'?{}:{x:{ticks:{color:'#aab7c7'},grid:{color:'rgba(255,255,255,.08)'}},y:{ticks:{color:'#aab7c7'},grid:{color:'rgba(255,255,255,.08)'}}}}})}
+function charts(r,a){let m={};r.forEach(x=>{let k=String(x.reference_month).slice(0,7);m[k]=(m[k]||0)+Number(x.consumption_kwh||0)});let ks=Object.keys(m).sort();chart('timelineChart','line',ks.map(ml),ks.map(k=>m[k]),'kWh');let top=a.slice().sort((x,y)=>Math.abs(y.variation_pct||0)-Math.abs(x.variation_pct||0)).slice(0,8);chart('rankingChart','bar',top.map(x=>String(x.uc||'').slice(0,12)),top.map(x=>Math.abs(+x.variation_pct||0)),'%');let sev={critical:0,high:0,medium:0};a.forEach(x=>sev[x.severity]=(sev[x.severity]||0)+1);chart('severityChart','doughnut',['Crítica','Alta','Média'],[sev.critical,sev.high,sev.medium],'alertas')}
+async function file(f){if(!f)return;$('importStatus').textContent=`Lendo ${f.name}...`;try{S.preview=await parseFile(f);let p=S.preview;$('mappingBox').innerHTML=`<b>Aba:</b> ${esc(p.sheet)}<br><b>Linhas úteis:</b> ${p.rows.length} de ${p.raw.length}<br><b>Colunas:</b> Unidade=${esc(p.columns.unit||'-')}; UC=${esc(p.columns.uc||'-')}; Mês=${esc(p.columns.month||'-')}; Consumo=${esc(p.columns.cons||'-')}; Valor=${esc(p.columns.amount||'-')}`;$('previewHead').innerHTML='<tr><th>UC</th><th>Unidade</th><th>Mês</th><th>Consumo</th><th>Valor</th></tr>';$('previewBody').innerHTML=p.rows.slice(0,8).map(r=>`<tr><td>${esc(r.uc)}</td><td>${esc(r.unit_name)}</td><td>${ml(r.reference_month)}</td><td>${N.format(r.consumption_kwh)}</td><td>${r.amount_brl==null?'-':N.format(r.amount_brl)}</td></tr>`).join('');$('saveImportBtn').disabled=!p.rows.length;$('clearPreviewBtn').disabled=false;$('importStatus').textContent=`${p.rows.length} linhas válidas prontas para salvar.`}catch(e){$('importStatus').textContent=e.message;toast('Falha ao ler arquivo')}}
+async function save(){if(!S.preview)return;$('saveImportBtn').disabled=true;try{let p=S.preview,j=await api('/api/imports',{method:'POST',body:JSON.stringify({file_name:p.file_name,file_hash:p.file_hash,columns:p.columns,rows:p.rows})});toast(`Importação salva: ${j.rows_saved} linhas`);clear();await load()}catch(e){$('importStatus').textContent=e.message;$('saveImportBtn').disabled=false}}
+function clear(){S.preview=null;$('mappingBox').textContent='Aguardando arquivo.';$('previewHead').innerHTML='';$('previewBody').innerHTML='';$('saveImportBtn').disabled=true;$('clearPreviewBtn').disabled=true}
+function exportCSV(){let h=['severity','uc','unit_name','reference_month','consumption_kwh','baseline_kwh','variation_pct','type'],csv=[h.join(',')].concat(fa().map(r=>h.map(k=>`"${String(r[k]??'').replace(/"/g,'""')}"`).join(','))).join('\n'),u=URL.createObjectURL(new Blob([csv]));let a=document.createElement('a');a.href=u;a.download='energisa-anomalias.csv';a.click();URL.revokeObjectURL(u)}
+$('fileInput').onchange=e=>file(e.target.files[0]);$('dropZone').ondragover=e=>{e.preventDefault()};$('dropZone').ondrop=e=>{e.preventDefault();file(e.dataTransfer.files[0])};$('saveImportBtn').onclick=save;$('clearPreviewBtn').onclick=clear;$('refreshBtn').onclick=()=>{health();load()};$('healthBtn').onclick=async()=>{$('healthOutput').textContent=JSON.stringify(await api('/api/health').catch(e=>({error:e.message})),null,2)};$('unitFilter').onchange=render;$('severityFilter').onchange=render;$('exportAnomaliesBtn').onclick=exportCSV;health();load();

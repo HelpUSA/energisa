@@ -1,68 +1,66 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Energisa - Análise de Consumo Anormal</title>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-<style>
-body{font-family:Arial,Helvetica,sans-serif;margin:24px;background:#f6f8fb;color:#172033}
-.card{background:#fff;border:1px solid #d9e0ec;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 8px 18px #0001}
-h1{margin:0 0 8px}
-label{font-weight:700;font-size:12px;display:block;margin-top:8px}
-input,select,button{padding:9px;border:1px solid #b9c4d6;border-radius:8px}
-button{background:#174ea6;color:#fff;cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.metric{background:#eef4ff;border-radius:12px;padding:12px}
-.metric b{display:block;font-size:24px}
-table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{border-bottom:1px solid #e5eaf2;padding:7px;text-align:left}
-th{background:#f0f3f8}
-.scroll{max-height:430px;overflow:auto}
-.alta{color:#b42318;font-weight:700}
-.media{color:#8a5a00;font-weight:700}
-.baixa{color:#174ea6;font-weight:700}
-.small{font-size:13px;color:#5f6b7a}
-@media(max-width:850px){.grid{grid-template-columns:1fr}}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Energisa Analytics | HelpUS</title>
+  <meta name="description" content="Dashboard HelpUS para histórico, importação e análise visual de consumo energético." />
+  <link rel="icon" href="/img/helpus-icon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-<h1>Energisa - Análise de Consumo Anormal</h1>
-<p class="small">Importe CSV, XLS ou XLSX. A ferramenta detecta ocorrências por unidade: consumo acima/abaixo do histórico, zerado, negativo, inválido e meses ausentes.</p>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#top">
+        <img src="/img/helpus-icon.png" alt="HelpUS" />
+        <span><strong>HelpUS</strong><small>Energisa Analytics</small></span>
+      </a>
+      <nav class="nav">
+        <a href="#dashboard" class="active">Dashboard</a>
+        <a href="#importar">Importar dados</a>
+        <a href="#historico">Histórico</a>
+        <a href="#anomalias">Anomalias</a>
+        <a href="#config">Configuração</a>
+      </nav>
+      <div class="status-card">
+        <span>Banco de dados</span>
+        <strong id="dbStatusText">Verificando...</strong>
+        <small id="dbStatusDetail">Railway/PostgreSQL</small>
+      </div>
+    </aside>
 
-<div class="card">
-<h2>1. Importar arquivo</h2>
-<input id="file" type="file" accept=".csv,.xls,.xlsx">
-<div class="grid">
-  <div><label>Unidade / UC / Cliente</label><select id="uc"></select></div>
-  <div><label>Referência / Data / Mês</label><select id="ref"></select></div>
-  <div><label>Consumo kWh</label><select id="kwh"></select></div>
-  <div><label>Sensibilidade %</label><input id="pct" type="number" value="45"></div>
-</div>
-<p><button id="go">Analisar</button> <button id="exp">Exportar anomalias CSV</button></p>
-<p id="status" class="small">Aguardando arquivo.</p>
-</div>
+    <main class="main" id="top">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Painel de consumo energético</p>
+          <h1>Histórico, anomalias e gráficos em uma única visão.</h1>
+          <p class="hero-copy">Importe planilhas mensais da Energisa, salve o histórico no PostgreSQL/Railway e acompanhe unidades, consumo e alertas de variação.</p>
+          <div class="actions"><label class="button primary" for="fileInput">Importar arquivo</label><button class="button ghost" id="refreshBtn">Atualizar painel</button></div>
+        </div>
+        <div class="hero-panel"><span>Cobertura histórica</span><strong id="coverageLabel">Sem dados</strong><small id="lastImportLabel">Nenhum arquivo importado nesta base.</small></div>
+      </section>
 
-<div class="grid">
-<div class="metric">Registros<b id="mRows">0</b></div>
-<div class="metric">Unidades<b id="mUnits">0</b></div>
-<div class="metric">Anomalias<b id="mAnom">0</b></div>
-<div class="metric">Altas<b id="mHigh">0</b></div>
-</div>
+      <section id="dashboard" class="section">
+        <div class="section-head"><div><p class="eyebrow">Visão geral</p><h2>Dashboard</h2></div><div class="filters"><select id="unitFilter"><option value="">Todas as unidades</option></select><select id="severityFilter"><option value="">Todas as severidades</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Média</option></select></div></div>
+        <div class="metrics"><article><span>Unidades</span><strong id="metricUnits">0</strong><small>UCs ou unidades detectadas</small></article><article><span>Meses</span><strong id="metricMonths">0</strong><small>período consolidado</small></article><article><span>Consumo total</span><strong id="metricKwh">0</strong><small>kWh no histórico filtrado</small></article><article class="alert"><span>Anomalias</span><strong id="metricAnomalies">0</strong><small>variações relevantes</small></article></div>
+        <div class="charts"><article class="chart-card wide"><div class="card-head"><h3>Consumo por mês</h3><span id="timelineSub">Total consolidado</span></div><canvas id="timelineChart"></canvas></article><article class="chart-card"><div class="card-head"><h3>Top alertas</h3><span>maiores variações</span></div><canvas id="rankingChart"></canvas></article><article class="chart-card"><div class="card-head"><h3>Severidade</h3><span>distribuição dos alertas</span></div><canvas id="severityChart"></canvas></article></div>
+      </section>
 
-<div class="card">
-<h2>2. Ocorrências detectadas</h2>
-<div class="scroll"><table>
-<thead><tr><th>Severidade</th><th>Tipo</th><th>Unidade</th><th>Referência</th><th>Consumo</th><th>Base</th><th>Variação</th><th>Motivo</th></tr></thead>
-<tbody id="out"></tbody>
-</table></div>
-</div>
+      <section id="importar" class="section split">
+        <div class="panel"><p class="eyebrow">Importação</p><h2>Adicionar arquivo mensal</h2><p>Aceita CSV, XLS ou XLSX. O sistema tenta detectar colunas de unidade/UC, referência, consumo, valor e demanda.</p><input id="fileInput" type="file" accept=".csv,.xls,.xlsx" hidden /><div class="upload-box" id="dropZone"><strong>Arraste o arquivo aqui</strong><span>ou clique em “Importar arquivo” no topo.</span></div><div class="actions"><button class="button primary" id="saveImportBtn" disabled>Salvar importação</button><button class="button ghost" id="clearPreviewBtn" disabled>Limpar prévia</button></div><p class="muted" id="importStatus">Nenhum arquivo selecionado.</p></div>
+        <div class="panel"><p class="eyebrow">Mapeamento detectado</p><h2>Prévia</h2><div id="mappingBox" class="mapping-box">Aguardando arquivo.</div><div class="table-wrap preview"><table><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table></div></div>
+      </section>
 
-<div class="card">
-<h2>3. Amostra dos dados importados</h2>
-<div class="scroll"><table id="raw"></table></div>
-</div>
+      <section id="historico" class="section"><div class="section-head"><div><p class="eyebrow">Arquivos processados</p><h2>Histórico de importações</h2></div></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Arquivo</th><th>Linhas</th><th>Período</th><th>Status</th></tr></thead><tbody id="importsTable"></tbody></table></div></section>
 
-<script src="app.js"></script>
+      <section id="anomalias" class="section"><div class="section-head"><div><p class="eyebrow">Auditoria energética</p><h2>Anomalias encontradas</h2></div><button class="button ghost" id="exportAnomaliesBtn">Exportar CSV</button></div><div class="table-wrap"><table><thead><tr><th>Severidade</th><th>UC</th><th>Unidade</th><th>Mês</th><th>Consumo</th><th>Baseline</th><th>Variação</th><th>Tipo</th></tr></thead><tbody id="anomaliesTable"></tbody></table></div></section>
+
+      <section id="config" class="section split"><div class="panel"><p class="eyebrow">Railway/PostgreSQL/p><h2>Configuração de banco</h2><p>Em produção, configure a variável <code>DATABASE_URL</code> no projeto Vercel apontando para o PostgreSQL do Railway.</p><pre class="code">vercel env add DATABASE_URL production</pre></div><div class="panel"><p class="eyebrow">API</p><h2>Teste de conexão</h2><button class="button primary" id="healthBtn">Testar API</button><pre class="code" id="healthOutput">Aguardando teste.</pre></div></section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
 </body>
 </html>

@@ -5,3 +5,6 @@ write_probe.txt
 node_modules
 .env
 .env.local
+vercel_*.log
+vercel_url.txt
+vercel_alias_error.log
