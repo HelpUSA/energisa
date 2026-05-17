@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Energisa - Análise de Consumo Anormal</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+body{font-family:Arial,Helvetica,sans-serif;margin:24px;background:#f6f8fb;color:#172033}
+.card{background:#fff;border:1px solid #d9e0ec;border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 8px 18px #0001}
+h1{margin:0 0 8px}
+label{font-weight:700;font-size:12px;display:block;margin-top:8px}
+input,select,button{padding:9px;border:1px solid #b9c4d6;border-radius:8px}
+button{background:#174ea6;color:#fff;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.metric{background:#eef4ff;border-radius:12px;padding:12px}
+.metric b{display:block;font-size:24px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{border-bottom:1px solid #e5eaf2;padding:7px;text-align:left}
+th{background:#f0f3f8}
+.scroll{max-height:430px;overflow:auto}
+.alta{color:#b42318;font-weight:700}
+.media{color:#8a5a00;font-weight:700}
+.baixa{color:#174ea6;font-weight:700}
+.small{font-size:13px;color:#5f6b7a}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>Energisa - Análise de Consumo Anormal</h1>
+<p class="small">Importe CSV, XLS ou XLSX. A ferramenta detecta ocorrências por unidade: consumo acima/abaixo do histórico, zerado, negativo, inválido e meses ausentes.</p>
+
+<div class="card">
+<h2>1. Importar arquivo</h2>
+<input id="file" type="file" accept=".csv,.xls,.xlsx">
+<div class="grid">
+  <div><label>Unidade / UC / Cliente</label><select id="uc"></select></div>
+  <div><label>Referência / Data / Mês</label><select id="ref"></select></div>
+  <div><label>Consumo kWh</label><select id="kwh"></select></div>
+  <div><label>Sensibilidade %</label><input id="pct" type="number" value="45"></div>
+</div>
+<p><button id="go">Analisar</button> <button id="exp">Exportar anomalias CSV</button></p>
+<p id="status" class="small">Aguardando arquivo.</p>
+</div>
+
+<div class="grid">
+<div class="metric">Registros<b id="mRows">0</b></div>
+<div class="metric">Unidades<b id="mUnits">0</b></div>
+<div class="metric">Anomalias<b id="mAnom">0</b></div>
+<div class="metric">Altas<b id="mHigh">0</b></div>
+</div>
+
+<div class="card">
+<h2>2. Ocorrências detectadas</h2>
+<div class="scroll"><table>
+<thead><tr><th>Severidade</th><th>Tipo</th><th>Unidade</th><th>Referência</th><th>Consumo</th><th>Base</th><th>Variação</th><th>Motivo</th></tr></thead>
+<tbody id="out"></tbody>
+</table></div>
+</div>
+
+<div class="card">
+<h2>3. Amostra dos dados importados</h2>
+<div class="scroll"><table id="raw"></table></div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

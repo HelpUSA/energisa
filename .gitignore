@@ -1,0 +1,7 @@
+server.pid
+server.log
+write_probe.txt
+.vercel
+node_modules
+.env
+.env.local
