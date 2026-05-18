@@ -22,7 +22,7 @@
         <a href="#importar">Importar dados</a>
         <a href="#historico">Histórico</a>
         <a href="#anomalias">Anomalias</a>
-        <a href="#config">Configuração</a>
+        
       </nav>
       <div class="status-card">
         <span>Banco de dados</span>
@@ -45,12 +45,16 @@
       <section id="dashboard" class="section">
         <div class="section-head"><div><p class="eyebrow">Visão geral</p><h2>Dashboard</h2></div><div class="filters"><select id="unitFilter"><option value="">Todas as unidades</option></select><select id="severityFilter"><option value="">Todas as severidades</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Média</option></select></div></div>
         <div class="metrics"><article><span>Unidades</span><strong id="metricUnits">0</strong><small>UCs ou unidades detectadas</small></article><article><span>Meses</span><strong id="metricMonths">0</strong><small>período consolidado</small></article><article><span>Consumo total</span><strong id="metricKwh">0</strong><small>kWh no histórico filtrado</small></article><article class="alert"><span>Anomalias</span><strong id="metricAnomalies">0</strong><small>variações relevantes</small></article></div>
-        <div class="charts"><article class="chart-card wide"><div class="card-head"><h3>Consumo por mês</h3><span id="timelineSub">Total consolidado</span></div><canvas id="timelineChart"></canvas></article><article class="chart-card"><div class="card-head"><h3>Top alertas</h3><span>maiores variações</span></div><canvas id="rankingChart"></canvas></article><article class="chart-card"><div class="card-head"><h3>Severidade</h3><span>distribuição dos alertas</span></div><canvas id="severityChart"></canvas></article></div>
+        <div class="charts insight-grid">
+          <article class="chart-card wide"><div class="card-head"><h3>Leitura por período</h3><span id="timelineSub">Total consolidado</span></div><canvas id="timelineChart"></canvas><div id="chartInsight" class="chart-note">Importe dados para visualizar a evolução.</div></article>
+          <article class="chart-card insight-list"><div class="card-head"><h3>Maiores valores</h3><span>registros importados</span></div><div id="topReadingsList" class="mini-list"></div></article>
+          <article class="chart-card insight-list"><div class="card-head"><h3>Auditoria</h3><span>leitura automática</span></div><div id="auditInsight" class="audit-note"></div></article>
+        </div>
       </section>
 
       <section id="importar" class="section split">
-        <div class="panel"><p class="eyebrow">Importação</p><h2>Adicionar arquivo mensal</h2><p>Aceita CSV, XLS ou XLSX. O sistema tenta detectar colunas de unidade/UC, referência, consumo, valor e demanda.</p><input id="fileInput" type="file" accept=".csv,.xls,.xlsx" hidden /><div class="upload-box" id="dropZone"><strong>Arraste o arquivo aqui</strong><span>ou clique em “Importar arquivo” no topo.</span></div><div class="actions"><button class="button primary" id="saveImportBtn" disabled>Salvar importação</button><button class="button ghost" id="clearPreviewBtn" disabled>Limpar prévia</button></div><p class="muted" id="importStatus">Nenhum arquivo selecionado.</p></div>
-        <div class="panel"><p class="eyebrow">Mapeamento detectado</p><h2>Prévia</h2><div id="mappingBox" class="mapping-box">Aguardando arquivo.</div><div class="table-wrap preview"><table><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table></div></div>
+        <div class="panel"><p class="eyebrow">Importação</p><h2>Importar planilha</h2><p>Aceita CSV, XLS ou XLSX. O sistema tenta detectar colunas de unidade/UC, referência, consumo, valor e demanda.</p><input id="fileInput" type="file" accept=".csv,.xls,.xlsx" hidden /><div class="upload-box" id="dropZone"><strong>Arraste o arquivo aqui</strong><span>ou clique em “Importar arquivo” no topo.</span></div><div class="actions"><button class="button primary" id="saveImportBtn" disabled>Salvar importação</button><button class="button ghost" id="clearPreviewBtn" disabled>Limpar prévia</button></div><p class="muted" id="importStatus">Nenhum arquivo selecionado.</p></div>
+        <div class="panel preview-panel is-hidden" id="previewPanel"><p class="eyebrow">Prévia</p><h2>Dados identificados</h2><div id="mappingBox" class="mapping-box">Aguardando arquivo.</div><div class="table-wrap preview"><table><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table></div></div>
       </section>
 
       <section id="historico" class="section"><div class="section-head"><div><p class="eyebrow">Arquivos processados</p><h2>Histórico de importações</h2></div></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Arquivo</th><th>Linhas</th><th>Período</th><th>Status</th></tr></thead><tbody id="importsTable"></tbody></table></div></section>

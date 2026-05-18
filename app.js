@@ -80,3 +80,115 @@ $('fileInput').onchange=e=>file(e.target.files[0]);$('dropZone').ondragover=e=>{
   Chart.defaults.maintainAspectRatio = false;
   Chart.defaults.resizeDelay = 150;
 })();
+
+
+// user-facing-cleanup-v3
+(function () {
+  function fmt(n) { return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 1 }).format(Number(n || 0)); }
+  function labelMonth(value) { if (!value) return '-'; var p = String(value).slice(0, 7).split('-'); return p.length === 2 ? p[1] + '/' + p[0] : '-'; }
+  function escapeHtml(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]; }); }
+  function isMeasure(value) {
+    var s = norm(value || '');
+    return !s || /^(km_l|kwh|kw|r|rs|litro|litros|total|media|consumo|valor|mes|data|periodo|referencia)$/.test(s);
+  }
+  function chooseColumns(headers, raw) {
+    var cols = {
+      unit: pick(headers, [/unidade_consumidora/, /^unidade$/, /cliente|local|posto|veiculo|placa|equipamento|descricao|nome/]),
+      uc: pick(headers, [/^uc$|instalacao|codigo|cod_|^cod$|conta|placa|id/]),
+      month: pick(headers, [/referencia|competencia|periodo|mes|data/]),
+      cons: pick(headers, [/consumo.*kwh|kwh|energia|consumo|quantidade|volume|litro|litros|abastecido|total/]),
+      amount: pick(headers, [/valor.*total|total.*valor|valor|reais|brl|custo|preco|r_/]),
+      demand: pick(headers, [/demanda|kw/])
+    };
+    if (!cols.unit) {
+      cols.unit = headers.find(function (h) {
+        var k = norm(h);
+        if (/valor|preco|custo|data|mes|periodo|referencia|total|media|consumo|kwh|kw|km|litro/.test(k)) return false;
+        var sample = raw.slice(0, 25).map(function (r) { return r[h]; }).filter(function (v) { return v != null && v !== ''; });
+        if (!sample.length) return false;
+        var text = sample.filter(function (v) { return Number.isNaN(Number(String(v).replace(',', '.'))); }).length;
+        return text >= Math.ceil(sample.length * 0.5);
+      }) || null;
+    }
+    if (!cols.cons) {
+      cols.cons = headers.find(function (h) {
+        var k = norm(h);
+        if (/valor|preco|custo|data|mes|periodo|referencia|codigo|cod_|id/.test(k)) return false;
+        var sample = raw.slice(0, 30).map(function (r) { return num(r[h]); }).filter(function (v) { return v != null; });
+        return sample.length >= 2;
+      }) || null;
+    }
+    return cols;
+  }
+  function monthFromFile(name) {
+    var s = String(name || '');
+    var m = s.match(/(\d{1,2})[_-](\d{1,2})[_-](20\d{2})/);
+    if (m) return m[3] + '-' + String(+m[2]).padStart(2, '0') + '-01';
+    m = s.match(/(20\d{2})[_-](\d{1,2})/);
+    if (m) return m[1] + '-' + String(+m[2]).padStart(2, '0') + '-01';
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-01';
+  }
+
+  parseFile = async function (file) {
+    var buffer = await file.arrayBuffer();
+    var wb = XLSX.read(buffer, { type: 'array', cellDates: true });
+    var sheet = wb.Sheets[wb.SheetNames[0]];
+    var raw = XLSX.utils.sheet_to_json(sheet, { defval: null, raw: false });
+    var headers = Object.keys(raw[0] || {});
+    var c = chooseColumns(headers, raw);
+    var fallbackMonth = monthFromFile(file.name);
+    var seen = new Map();
+
+    var rows = raw.map(function (r, i) {
+      var consumption = num(c.cons ? r[c.cons] : null);
+      if (consumption == null) return null;
+      var month = mon(c.month ? r[c.month] : null) || fallbackMonth;
+      var unit = c.unit ? r[c.unit] : '';
+      var uc = c.uc ? r[c.uc] : '';
+      if (isMeasure(unit)) unit = '';
+      if (isMeasure(uc)) uc = '';
+      var label = String(unit || uc || ('Linha ' + (i + 1))).trim();
+      var code = String(uc || label || ('linha-' + (i + 1))).trim();
+      var key = code + '|' + month;
+      var count = (seen.get(key) || 0) + 1;
+      seen.set(key, count);
+      if (count > 1 && (!c.uc || code === label)) code = code + ' #' + count;
+      return { unit_name: label, uc: code, reference_month: month, consumption_kwh: consumption, amount_brl: num(c.amount ? r[c.amount] : null), demand_kw: num(c.demand ? r[c.demand] : null), raw: r };
+    }).filter(Boolean);
+
+    return { raw: raw, rows: rows, columns: c, sheet: wb.SheetNames[0], file_hash: await hash(file), file_name: file.name };
+  };
+
+  charts = function (r, a) {
+    var totals = {};
+    (r || []).forEach(function (x) { var k = String(x.reference_month).slice(0, 7); totals[k] = (totals[k] || 0) + Number(x.consumption_kwh || 0); });
+    var keys = Object.keys(totals).sort();
+    chart('timelineChart', keys.length <= 1 ? 'bar' : 'line', keys.map(labelMonth), keys.map(function (k) { return totals[k]; }), 'Consumo');
+    var note = document.getElementById('chartInsight');
+    if (note) note.textContent = keys.length < 2 ? 'Com apenas um período, o gráfico é uma fotografia do mês. Importe novos meses para enxergar tendência e sazonalidade.' : 'O gráfico consolida o consumo por período para evidenciar tendência e sazonalidade.';
+    var top = document.getElementById('topReadingsList');
+    if (top) {
+      var sorted = (r || []).slice().sort(function (x, y) { return Number(y.consumption_kwh || 0) - Number(x.consumption_kwh || 0); }).slice(0, 5);
+      top.innerHTML = sorted.length ? sorted.map(function (row) {
+        return '<div class="mini-row"><div><strong>' + escapeHtml(row.unit_name || row.uc || 'Registro') + '</strong><span>' + escapeHtml(row.uc || '') + ' · ' + labelMonth(row.reference_month) + '</span></div><strong>' + fmt(row.consumption_kwh) + '</strong></div>';
+      }).join('') : '<div class="chart-note">Importe um arquivo para gerar a leitura do período.</div>';
+    }
+    var audit = document.getElementById('auditInsight');
+    if (audit) {
+      if ((a || []).length) audit.textContent = 'Foram encontradas ' + (a || []).length + ' variações relevantes no histórico.';
+      else if (keys.length < 3) audit.textContent = 'Auditoria sem alertas neste momento: ainda não há histórico suficiente para comparar variações. Os indicadores ficam mais fortes após três ou mais períodos importados.';
+      else audit.textContent = 'Nenhuma anomalia relevante foi detectada com base no histórico atual.';
+    }
+    var filters = document.getElementById('unitFilter') ? document.getElementById('unitFilter').closest('.filters') : null;
+    if (filters) filters.classList.toggle('single-option', new Set((S.readings || []).map(function (x) { return x.uc || x.unit_name; }).filter(Boolean)).size <= 1);
+    var preview = document.getElementById('previewPanel');
+    if (preview) preview.classList.toggle('is-hidden', !S.preview);
+  };
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var preview = document.getElementById('previewPanel');
+    var input = document.getElementById('fileInput');
+    if (input && preview) input.addEventListener('change', function () { setTimeout(function () { preview.classList.toggle('is-hidden', !S.preview); }, 600); });
+  });
+})();
