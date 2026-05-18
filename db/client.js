@@ -118,9 +118,9 @@ function dateOnly(value) {
  if (!value) return null;
  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
  const s = String(value).trim();
- const iso = s.match(/^(20[0-9]{2}|19[0-9]{2})-/ -/ $/);
+ const iso = s.match(new RegExp('^(20[0-9]{2}|19[0-9]{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12][0-9]|3[01])$'));
  if (iso) return `${iso[1]}-${String(iso[2]).padStart(2, '0')}-${String(iso[3]).padStart(2, '0')}`;
- const br = s.match(/^(0?[1-9]|[12][0-9]|3[01])-/ -/ $/);
+ const br = s.match(new RegExp('^(0?[1-9]|[12][0-9]|3[01])[-/](0?[1-9]|1[0-2])[-/]((?:20|19)[0-9]{2})$'));
  if (br) return `${br[3]}-${String(br[2]).padStart(2, '0')}-${String(br[1]).padStart(2, '0')}`;
  const d = new Date(s);
  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
