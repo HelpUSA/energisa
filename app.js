@@ -71,3 +71,12 @@ $('fileInput').onchange=e=>file(e.target.files[0]);$('dropZone').ondragover=e=>{
     }
   });
 })();
+
+
+// Energisa chart resize stability patch
+(function () {
+  if (!window.Chart) return;
+  Chart.defaults.responsive = true;
+  Chart.defaults.maintainAspectRatio = false;
+  Chart.defaults.resizeDelay = 150;
+})();
