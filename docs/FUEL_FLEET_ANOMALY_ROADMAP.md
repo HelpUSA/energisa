@@ -1,4 +1,4 @@
-# Energisa / Fleet Fuel Anomaly Analyzer — Roadmap
+# Energisa / Fleet Fuel Anomaly Analyzer - Roadmap
 
 Last update: 2026-05-18
 Project root: D:/dev/energisa
@@ -123,7 +123,7 @@ Every import must generate a quality report:
 
 ## 7. Anomaly Detection Rules
 
-### Rule A — Odometer Regression
+### Rule A - Odometer Regression
 
 Flag when current odometer is lower than previous odometer for the same vehicle.
 
@@ -132,7 +132,7 @@ Severity:
 - critical if odometer decreases.
 - high if odometer is equal but liters are greater than zero on different dates.
 
-### Rule B — Impossibly High Fuel Volume
+### Rule B - Impossibly High Fuel Volume
 
 Flag when liters exceed known or estimated tank capacity.
 
@@ -141,7 +141,7 @@ Severity:
 - critical if liters > 120% of tank capacity.
 - high if liters > 100% of tank capacity.
 
-### Rule C — Low Km/L vs Vehicle Baseline
+### Rule C - Low Km/L vs Vehicle Baseline
 
 Calculate baseline only after enough valid history exists for that vehicle.
 
@@ -155,7 +155,7 @@ Severity:
 - high for 40% below baseline.
 - critical for 60% below baseline.
 
-### Rule D — High Unit Price
+### Rule D - High Unit Price
 
 Compare unit price to the same fuel type, same period, and same workspace.
 
@@ -165,19 +165,19 @@ Severity:
 - high if > 30% above median.
 - critical if > 50% above median.
 
-### Rule E — Duplicate Fueling Candidate
+### Rule E - Duplicate Fueling Candidate
 
 Flag likely duplicates when the same vehicle has near-matching date, liters, total value, and station.
 
-### Rule F — Unusually Frequent Fueling
+### Rule F - Unusually Frequent Fueling
 
 Flag when the same vehicle has multiple fueling events too close together, especially when odometer movement is low.
 
-### Rule G — Missing Critical Fields
+### Rule G - Missing Critical Fields
 
 Rows with missing plate, date, or liters should not be silently accepted.
 
-### Rule H — Driver / Vehicle / Station Pattern Change
+### Rule H - Driver / Vehicle / Station Pattern Change
 
 When enough data exists, flag unusual driver-vehicle-station combinations as low or medium severity.
 
@@ -281,38 +281,38 @@ GET /api/fuel/reports/stations?workspace_id=...
 
 ## 11. Implementation Phases
 
-### Phase 1 — Documentation and Domain Model
+### Phase 1 - Documentation and Domain Model
 
 - Create this roadmap under docs/.
 - Define the fuel-specific schema.
 - Keep current production stable.
 
-### Phase 2 — Fuel Parser MVP
+### Phase 2 - Fuel Parser MVP
 
 - Add parser for vehicle fueling spreadsheets.
 - Detect vehicle/date/liters/value/odometer columns.
 - Show mapping preview and quality report.
 - Prevent metric labels from becoming vehicle IDs.
 
-### Phase 3 — Fuel Tables and APIs
+### Phase 3 - Fuel Tables and APIs
 
 - Create fuel_* and workspace_* tables.
 - Add workspace scoping.
 - Store raw row JSON and import quality metadata.
 
-### Phase 4 — Anomaly Engine
+### Phase 4 - Anomaly Engine
 
 - Implement deterministic audit rules first.
 - Add risk score.
 - Store explanation and recommendation for each anomaly.
 
-### Phase 5 — Multi-User MVP
+### Phase 5 - Multi-User MVP
 
 - Add login/session.
 - Add users, workspaces, members, and roles.
 - Ensure all API queries are workspace-scoped.
 
-### Phase 6 — Reports and Export
+### Phase 6 - Reports and Export
 
 - Add CSV export.
 - Add report pages by vehicle, driver, station, period, and severity.
