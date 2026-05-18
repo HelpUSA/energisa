@@ -24,3 +24,50 @@ async function save(){if(!S.preview)return;$('saveImportBtn').disabled=true;try{
 function clear(){S.preview=null;$('mappingBox').textContent='Aguardando arquivo.';$('previewHead').innerHTML='';$('previewBody').innerHTML='';$('saveImportBtn').disabled=true;$('clearPreviewBtn').disabled=true}
 function exportCSV(){let h=['severity','uc','unit_name','reference_month','consumption_kwh','baseline_kwh','variation_pct','type'],csv=[h.join(',')].concat(fa().map(r=>h.map(k=>`"${String(r[k]??'').replace(/"/g,'""')}"`).join(','))).join('\n'),u=URL.createObjectURL(new Blob([csv]));let a=document.createElement('a');a.href=u;a.download='energisa-anomalias.csv';a.click();URL.revokeObjectURL(u)}
 $('fileInput').onchange=e=>file(e.target.files[0]);$('dropZone').ondragover=e=>{e.preventDefault()};$('dropZone').ondrop=e=>{e.preventDefault();file(e.dataTransfer.files[0])};$('saveImportBtn').onclick=save;$('clearPreviewBtn').onclick=clear;$('refreshBtn').onclick=()=>{health();load()};$('healthBtn').onclick=async()=>{$('healthOutput').textContent=JSON.stringify(await api('/api/health').catch(e=>({error:e.message})),null,2)};$('unitFilter').onchange=render;$('severityFilter').onchange=render;$('exportAnomaliesBtn').onclick=exportCSV;health();load();
+
+// HelpUS navigation action patch
+(function () {
+  function ready(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+  }
+
+  ready(function () {
+    var fileInput = document.getElementById('fileInput');
+    function openFilePicker() {
+      if (fileInput) fileInput.click();
+    }
+
+    document.querySelectorAll('.nav a[href^="#"], .brand[href^="#"]').forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        var href = link.getAttribute('href');
+        var target = href ? document.querySelector(href) : null;
+        if (!target) return;
+        event.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.querySelectorAll('.nav a').forEach(function (item) {
+          item.classList.remove('active');
+        });
+        if (link.closest('.nav')) link.classList.add('active');
+        history.replaceState(null, '', href);
+        if (href === '#importar') {
+          window.setTimeout(openFilePicker, 450);
+        }
+      });
+    });
+
+    var dropzone = document.getElementById('dropzone');
+    if (dropzone) {
+      dropzone.setAttribute('role', 'button');
+      dropzone.setAttribute('tabindex', '0');
+      dropzone.setAttribute('aria-label', 'Selecionar arquivo de consumo Energisa');
+      dropzone.addEventListener('click', openFilePicker);
+      dropzone.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openFilePicker();
+        }
+      });
+    }
+  });
+})();
