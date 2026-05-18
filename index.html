@@ -1,70 +1,146 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Energisa Analytics | HelpUS</title>
-  <meta name="description" content="Dashboard HelpUS para histórico, importação e análise visual de consumo energético." />
-  <link rel="icon" href="/img/helpus-icon.png" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HelpUS | Auditoria de abastecimento</title>
+  <meta name="description" content="Dashboard HelpUS para importar planilhas de abastecimento de veículos e detectar anomalias de frota." />
+  <link rel="icon" href="img/helpus-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="shell">
+  <div class="layout">
     <aside class="sidebar">
-      <a class="brand" href="#top">
-        <img src="/img/helpus-icon.png" alt="HelpUS" />
-        <span><strong>HelpUS</strong><small>Energisa Analytics</small></span>
-      </a>
-      <nav class="nav">
-        <a href="#dashboard" class="active">Dashboard</a>
-        <a href="#importar">Importar dados</a>
-        <a href="#historico">Histórico</a>
+      <div class="brand">
+        <img src="img/helpus-icon.png" alt="HelpUS" />
+        <div>
+          <strong>HelpUS</strong>
+          <span>Fleet audit</span>
+        </div>
+      </div>
+      <nav>
+        <a href="#dashboard">Dashboard</a>
+        <a href="#importar">Importar planilha</a>
         <a href="#anomalias">Anomalias</a>
-        
+        <a href="#veiculos">Veículos</a>
       </nav>
-      <div class="status-card">
-        <span>Banco de dados</span>
-        <strong id="dbStatusText">Verificando...</strong>
-        <small id="dbStatusDetail">Railway/PostgreSQL</small>
+      <div class="side-note">
+        <strong>Objetivo</strong>
+        <small>Detectar padrões suspeitos em abastecimentos por veículo, motorista, hodômetro, litros e valor.</small>
       </div>
     </aside>
 
     <main class="main" id="top">
       <section class="hero">
         <div>
-          <p class="eyebrow">Painel de consumo energético</p>
-          <h1>Histórico, anomalias e gráficos em uma única visão.</h1>
-          <p class="hero-copy">Importe planilhas mensais da Energisa, salve o histórico no PostgreSQL/Railway e acompanhe unidades, consumo e alertas de variação.</p>
-          <div class="actions"><label class="button primary" for="fileInput">Importar arquivo</label><button class="button ghost" id="refreshBtn">Atualizar painel</button></div>
+          <p class="eyebrow">Auditoria de frota</p>
+          <h1>Abastecimentos de veículos com análise de anomalias</h1>
+          <p class="hero-copy">Importe CSV, XLS ou XLSX, salve o histórico por estudo e acompanhe Km/L, custo por km, volumes, preços e registros suspeitos.</p>
+          <div class="actions">
+            <label class="button primary" for="fileInput">Importar planilha</label>
+            <button class="button ghost" id="refreshBtn" type="button">Atualizar painel</button>
+          </div>
         </div>
-        <div class="hero-panel"><span>Cobertura histórica</span><strong id="coverageLabel">Sem dados</strong><small id="lastImportLabel">Nenhum arquivo importado nesta base.</small></div>
+        <div class="hero-panel">
+          <span>Base de frota</span>
+          <strong id="coverageLabel">Sem dados</strong>
+          <small id="lastImportLabel">Nenhum arquivo importado nesta base.</small>
+        </div>
       </section>
 
       <section id="dashboard" class="section">
-        <div class="section-head"><div><p class="eyebrow">Visão geral</p><h2>Dashboard</h2></div><div class="filters"><select id="unitFilter"><option value="">Todas as unidades</option></select><select id="severityFilter"><option value="">Todas as severidades</option><option value="critical">Crítica</option><option value="high">Alta</option><option value="medium">Média</option></select></div></div>
-        <div class="metrics"><article><span>Unidades</span><strong id="metricUnits">0</strong><small>UCs ou unidades detectadas</small></article><article><span>Meses</span><strong id="metricMonths">0</strong><small>período consolidado</small></article><article><span>Consumo total</span><strong id="metricKwh">0</strong><small>kWh no histórico filtrado</small></article><article class="alert"><span>Anomalias</span><strong id="metricAnomalies">0</strong><small>variações relevantes</small></article></div>
-        <div class="charts insight-grid">
-          <article class="chart-card wide"><div class="card-head"><h3>Leitura por período</h3><span id="timelineSub">Total consolidado</span></div><canvas id="timelineChart"></canvas><div id="chartInsight" class="chart-note">Importe dados para visualizar a evolução.</div></article>
-          <article class="chart-card insight-list"><div class="card-head"><h3>Maiores valores</h3><span>registros importados</span></div><div id="topReadingsList" class="mini-list"></div></article>
-          <article class="chart-card insight-list"><div class="card-head"><h3>Auditoria</h3><span>leitura automática</span></div><div id="auditInsight" class="audit-note"></div></article>
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Visão geral</p>
+            <h2>Dashboard</h2>
+          </div>
+          <span class="pill" id="workspaceLabel">Workspace padrão</span>
+        </div>
+
+        <div class="metrics">
+          <article><span>Veículos</span><strong id="metricVehicles">0</strong><small>placas detectadas</small></article>
+          <article><span>Abastecimentos</span><strong id="metricEvents">0</strong><small>registros válidos</small></article>
+          <article><span>Litros</span><strong id="metricLiters">0</strong><small>volume total</small></article>
+          <article><span>Valor total</span><strong id="metricTotal">R$ 0,00</strong><small>gasto auditado</small></article>
+          <article><span>Km/L médio</span><strong id="metricKmpl">-</strong><small>quando há hodômetro</small></article>
+          <article><span>Alertas</span><strong id="metricAlerts">0</strong><small>anomalias detectadas</small></article>
+        </div>
+
+        <div class="charts">
+          <article class="chart-card wide"><h3>Litros e valor por período</h3><canvas id="timelineChart"></canvas></article>
+          <article class="chart-card"><h3>Maiores gastos por veículo</h3><canvas id="vehicleChart"></canvas></article>
         </div>
       </section>
 
-      <section id="importar" class="section split">
-        <div class="panel"><p class="eyebrow">Importação</p><h2>Importar planilha</h2><p>Aceita CSV, XLS ou XLSX. O sistema tenta detectar colunas de unidade/UC, referência, consumo, valor e demanda.</p><input id="fileInput" type="file" accept=".csv,.xls,.xlsx" hidden /><div class="upload-box" id="dropZone"><strong>Arraste o arquivo aqui</strong><span>ou clique em “Importar arquivo” no topo.</span></div><div class="actions"><button class="button primary" id="saveImportBtn" disabled>Salvar importação</button><button class="button ghost" id="clearPreviewBtn" disabled>Limpar prévia</button></div><p class="muted" id="importStatus">Nenhum arquivo selecionado.</p></div>
-        <div class="panel preview-panel is-hidden" id="previewPanel"><p class="eyebrow">Prévia</p><h2>Dados identificados</h2><div id="mappingBox" class="mapping-box">Aguardando arquivo.</div><div class="table-wrap preview"><table><thead id="previewHead"></thead><tbody id="previewBody"></tbody></table></div></div>
+      <section id="importar" class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Entrada de dados</p>
+            <h2>Importar planilha de abastecimento</h2>
+          </div>
+          <button class="button primary" id="saveImportBtn" type="button" disabled>Salvar importação</button>
+        </div>
+
+        <input id="fileInput" type="file" accept=".csv,.xls,.xlsx" hidden />
+        <div id="dropzone" class="dropzone">
+          <strong>Arraste uma planilha aqui ou clique para selecionar</strong>
+          <span>Campos esperados: placa, data, hodômetro, litros, valor, preço por litro, motorista, posto e combustível.</span>
+        </div>
+
+        <div class="import-summary" id="importSummary" hidden></div>
+
+        <div class="table-wrap preview" id="previewWrap" hidden>
+          <table>
+            <thead><tr><th>Placa</th><th>Data</th><th>Hodômetro</th><th>Litros</th><th>Total</th><th>Motorista</th><th>Posto</th><th>Status</th></tr></thead>
+            <tbody id="previewRows"></tbody>
+          </table>
+        </div>
       </section>
 
-      <section id="historico" class="section"><div class="section-head"><div><p class="eyebrow">Arquivos processados</p><h2>Histórico de importações</h2></div></div><div class="table-wrap"><table><thead><tr><th>Data</th><th>Arquivo</th><th>Linhas</th><th>Período</th><th>Status</th></tr></thead><tbody id="importsTable"></tbody></table></div></section>
+      <section id="anomalias" class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Auditoria</p>
+            <h2>Anomalias detectadas</h2>
+          </div>
+          <span class="pill" id="auditLabel">Aguardando dados</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Risco</th><th>Severidade</th><th>Veículo</th><th>Data</th><th>Tipo</th><th>Explicação</th></tr></thead>
+            <tbody id="anomalyRows"></tbody>
+          </table>
+        </div>
+      </section>
 
-      <section id="anomalias" class="section"><div class="section-head"><div><p class="eyebrow">Auditoria energética</p><h2>Anomalias encontradas</h2></div><button class="button ghost" id="exportAnomaliesBtn">Exportar CSV</button></div><div class="table-wrap"><table><thead><tr><th>Severidade</th><th>UC</th><th>Unidade</th><th>Mês</th><th>Consumo</th><th>Baseline</th><th>Variação</th><th>Tipo</th></tr></thead><tbody id="anomaliesTable"></tbody></table></div></section>
-
-      <section id="config" class="section split"><div class="panel"><p class="eyebrow">Railway/PostgreSQL/p><h2>Configuração de banco</h2><p>Em produção, configure a variável <code>DATABASE_URL</code> no projeto Vercel apontando para o PostgreSQL do Railway.</p><pre class="code">vercel env add DATABASE_URL production</pre></div><div class="panel"><p class="eyebrow">API</p><h2>Teste de conexão</h2><button class="button primary" id="healthBtn">Testar API</button><pre class="code" id="healthOutput">Aguardando teste.</pre></div></section>
+      <section id="veiculos" class="section">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Frota</p>
+            <h2>Veículos e eventos recentes</h2>
+          </div>
+        </div>
+        <div class="split">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Veículo</th><th>Eventos</th><th>Litros</th><th>Total</th><th>Km/L médio</th></tr></thead>
+              <tbody id="vehicleRows"></tbody>
+            </table>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Data</th><th>Veículo</th><th>Litros</th><th>Total</th><th>Km/L</th></tr></thead>
+              <tbody id="eventRows"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js"></script>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
 </body>
 </html>
