@@ -332,3 +332,7 @@ document.addEventListener('DOMContentLoaded',()=>{
  const btn=$('createWorkspaceBtn');
  if(btn)btn.addEventListener('click',createWorkspace);
 });
+
+// export-ui-runtime-patch-v2
+function openFuelExport(type){const wid=typeof currentWorkspaceId === 'function' ? currentWorkspaceId() : '';const url='/api/fuel/export?type='+encodeURIComponent(type)+(wid?'&workspace_id='+encodeURIComponent(wid):'');window.open(url,'_blank');}
+document.addEventListener('DOMContentLoaded',()=>{const a=$(['exportAnomaliesBtn'][0]);if(a)a.addEventListener('click',()=>openFuelExport('anomalies'));const e=$(['exportEventsBtn'][0]);if(e)e.addEventListener('click',()=>openFuelExport('events'));});
