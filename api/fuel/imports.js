@@ -83,7 +83,9 @@ async function handler(req, res) {
  const valid = normalized.filter(r => r.vehicle_plate && r.fuel_date && r.liters !== null);
  const rejected = normalized.length - valid.length;
  const ctx = await ensureDefaultWorkspace();
- const workspaceId = body.workspace_id || ctx.workspace_id;
+ const requestedWorkspaceId = body.workspace_id || (req.query && req.query.workspace_id);
+ const workspaceId = requestedWorkspaceId || ctx.workspace_id;
+
  const userId = body.user_id || ctx.user_id;
  if (!valid.length) return json(res, 400, { ok: false, error: 'no_valid_fuel_rows', row_count: rows.length, rejected_row_count: rejected });
  const client = await db.connect();
