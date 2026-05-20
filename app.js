@@ -273,3 +273,62 @@ function bind() {
   });
 }
 document.addEventListener('DOMContentLoaded', () => { bind(); refresh(); });
+
+
+// workspace-ui-runtime-patch-v2
+state.workspaceId = localStorage.getItem('energisa_workspace_id') || state.workspaceId || '';
+function currentWorkspaceId(){ const el=$('workspaceSelect'); return (el && el.value) || state.workspaceId || ''; }
+async function loadWorkspaces(){
+ try{
+ const data=await api('/api/fuel/workspaces');
+ const select=$('workspaceSelect');
+ if(!select)return;
+ const list=data.workspaces||[];
+ if(!state.workspaceId && data.default_workspace_id) state.workspaceId=data.default_workspace_id;
+ select.innerHTML=list.map(w=>'<option value='+w.id+'>'+escapeHtml(w.name)+' - '+fmtNumber(w.event_count)+' abastec.</option>').join('');
+ select.value=state.workspaceId || data.default_workspace_id || (list[0]&&list[0].id) || '';
+ state.workspaceId=select.value;
+ if(state.workspaceId)localStorage.setItem('energisa_workspace_id',state.workspaceId);
+ }catch(err){ toast('Nao foi possivel carregar estudos: '+err.message); }
+}
+async function createWorkspace(){
+ const input=$('newWorkspaceName');
+ const name=input&&input.value?input.value.trim().replace(/_/g,' '):'';
+ if(!name)return toast('Informe um nome para o estudo.');
+ try{
+ const data=await api('/api/fuel/workspaces',{method:'POST',body:JSON.stringify({name})});
+ state.workspaceId=data.workspace.id;
+ localStorage.setItem('energisa_workspace_id',state.workspaceId);
+ if(input)input.value='';
+ await loadWorkspaces();
+ await refresh();
+ toast('Estudo criado e selecionado.');
+ }catch(err){ toast('Erro ao criar estudo: '+err.message); }
+}
+refresh = async function(){
+ try{
+ const wid=currentWorkspaceId();
+ renderSummary(await api('/api/fuel/summary'+(wid?'?workspace_id='+encodeURIComponent(wid):'')));
+ }catch(err){ toast('Nao foi possivel carregar o dashboard: '+err.message); }
+};
+saveImport = async function(){
+ if(!state.meta || !state.meta.valid.length)return toast('Selecione uma planilha valida primeiro.');
+ try{
+ $('saveImportBtn').disabled=true;
+ toast('Salvando importacao...');
+ const result=await api('/api/fuel/imports',{method:'POST',body:JSON.stringify({file_name:state.meta.file_name,file_hash:state.meta.file_hash,mapping:state.meta.mapping,rows:state.meta.rows,workspace_id:currentWorkspaceId()})});
+ toast('Importacao salva: '+result.valid_row_count+' linhas e '+result.anomaly_count+' alerta(s).');
+ await loadWorkspaces();
+ await refresh();
+ const target=$('dashboard');
+ if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(err){ toast('Erro ao salvar importacao: '+err.message); }
+ finally{ $('saveImportBtn').disabled=false; }
+};
+document.addEventListener('DOMContentLoaded',()=>{
+ loadWorkspaces().then(refresh);
+ const ws=$('workspaceSelect');
+ if(ws)ws.addEventListener('change',()=>{ state.workspaceId=ws.value; localStorage.setItem('energisa_workspace_id',state.workspaceId); refresh(); });
+ const btn=$('createWorkspaceBtn');
+ if(btn)btn.addEventListener('click',createWorkspace);
+});
