@@ -19,12 +19,19 @@ function normalizePlate(value) {
  return text(value).toUpperCase().split('').filter(ch => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.includes(ch)).join('');
 }
 
+function isMetricLabelVehicle(value) {
+ const label = text(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+ const compact = label.split('').filter(ch => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.includes(ch)).join('');
+ return ['KML', 'KMPL', 'LITRO', 'LITROS', 'TOTAL', 'R', 'RS', 'VALOR', 'PRECO', 'PREO', 'MEDIA', 'MDIA'].includes(compact);
+}
+
 function cleanName(value) {
  return text(value).split(' ').filter(Boolean).join(' ').slice(0, 180);
 }
 
 function normalizeRow(row, index) {
- const vehiclePlate = normalizePlate(row.vehicle_plate || row.plate || row.placa || row.veiculo || row.vehicle);
+ const rawVehicle = row.vehicle_plate || row.plate || row.placa || row.veiculo || row.vehicle;
+ const vehiclePlate = isMetricLabelVehicle(rawVehicle) ? '' : normalizePlate(rawVehicle);
  const driverName = cleanName(row.driver_name || row.driver || row.motorista || row.condutor);
  const fuelDate = dateOnly(row.fuel_date || row.date || row.data || row.abastecimento_data);
  const liters = num(row.liters ?? row.litros ?? row.volume ?? row.quantidade);
@@ -43,6 +50,29 @@ function normalizeRow(row, index) {
  station_name: cleanName(row.station_name || row.posto || row.estabelecimento || row.fornecedor) || null,
  source_row: Number.isFinite(Number(row.source_row)) ? Number(row.source_row) : index + 1,
  raw: row.raw || row,
+ };
+}
+
+function rowRejectionReasons(row) {
+ const reasons = [];
+ const rawVehicle = row.raw && (row.raw.vehicle_plate || row.raw.plate || row.raw.placa || row.raw.veiculo || row.raw.vehicle);
+ if (isMetricLabelVehicle(rawVehicle || row.vehicle_plate)) reasons.push('metric_label_vehicle');
+ if (!row.vehicle_plate) reasons.push('missing_vehicle');
+ if (!row.fuel_date) reasons.push('missing_date');
+ if (row.liters === null) reasons.push('missing_liters');
+ return reasons;
+}
+
+function buildQualityReport(normalized, rejected) {
+ const rejectedReasonCounts = {};
+ normalized.forEach(row => {
+ rowRejectionReasons(row).forEach(reason => {
+ rejectedReasonCounts[reason] = (rejectedReasonCounts[reason] || 0) + 1;
+ });
+ });
+ return {
+ rejected_row_count: rejected,
+ rejected_reason_counts: rejectedReasonCounts,
  };
 }
 
@@ -80,24 +110,25 @@ async function handler(req, res) {
  const body = await readBody(req);
  const rows = Array.isArray(body.rows) ? body.rows : [];
  const normalized = rows.map(normalizeRow);
- const valid = normalized.filter(r => r.vehicle_plate && r.fuel_date && r.liters !== null);
+ const valid = normalized.filter(r => rowRejectionReasons(r).length === 0);
  const rejected = normalized.length - valid.length;
+ const qualityReport = buildQualityReport(normalized, rejected);
  const ctx = await ensureDefaultWorkspace();
  const requestedWorkspaceId = body.workspace_id || (req.query && req.query.workspace_id);
  const workspaceId = requestedWorkspaceId || ctx.workspace_id;
 
  const userId = body.user_id || ctx.user_id;
- if (!valid.length) return json(res, 400, { ok: false, error: 'no_valid_fuel_rows', row_count: rows.length, rejected_row_count: rejected });
+ if (!valid.length) return json(res, 400, { ok: false, error: 'no_valid_fuel_rows', row_count: rows.length, rejected_row_count: rejected, quality_report: qualityReport });
  const client = await db.connect();
  try {
  await client.query('begin');
- const imp = await client.query('insert into fuel_imports(workspace_id,user_id,file_name,file_hash,row_count,valid_row_count,rejected_row_count,mapping_json,quality_report_json,status) values($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10) on conflict do nothing returning id', [workspaceId, userId, body.file_name || 'fuel-import', body.file_hash || null, rows.length, valid.length, rejected, JSON.stringify(body.mapping || {}), JSON.stringify({ rejected_row_count: rejected }), 'imported']);
+ const imp = await client.query('insert into fuel_imports(workspace_id,user_id,file_name,file_hash,row_count,valid_row_count,rejected_row_count,mapping_json,quality_report_json,status) values($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10) on conflict do nothing returning id', [workspaceId, userId, body.file_name || 'fuel-import', body.file_hash || null, rows.length, valid.length, rejected, JSON.stringify(body.mapping || {}), JSON.stringify(qualityReport), 'imported']);
  let importId = imp.rows[0] && imp.rows[0].id;
  if (!importId) {
  const old = await client.query('select id from fuel_imports where workspace_id=$1 and file_hash=$2 order by imported_at desc limit 1', [workspaceId, body.file_hash || null]);
  importId = old.rows[0] && old.rows[0].id;
  await client.query('delete from fuel_events where import_id=$1', [importId]);
- await client.query('update fuel_imports set file_name=$2,row_count=$3,valid_row_count=$4,rejected_row_count=$5,mapping_json=$6::jsonb,quality_report_json=$7::jsonb,imported_at=now() where id=$1', [importId, body.file_name || 'fuel-import', rows.length, valid.length, rejected, JSON.stringify(body.mapping || {}), JSON.stringify({ rejected_row_count: rejected })]);
+ await client.query('update fuel_imports set file_name=$2,row_count=$3,valid_row_count=$4,rejected_row_count=$5,mapping_json=$6::jsonb,quality_report_json=$7::jsonb,imported_at=now() where id=$1', [importId, body.file_name || 'fuel-import', rows.length, valid.length, rejected, JSON.stringify(body.mapping || {}), JSON.stringify(qualityReport)]);
  }
  for (const r of valid) {
  const vehicle = await client.query('insert into vehicles(workspace_id,plate,name) values($1,$2,$2) on conflict(workspace_id,plate) do update set plate=excluded.plate returning id', [workspaceId, r.vehicle_plate]);
@@ -114,7 +145,7 @@ async function handler(req, res) {
  const anomalies = buildAnomalies(allEvents.rows);
  for (const a of anomalies) await client.query('insert into fuel_anomalies(workspace_id,event_id,import_id,type,severity,risk_score,title,explanation,details) values($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb)', [workspaceId, a.event_id, a.import_id, a.type, a.severity, a.risk_score, a.title, a.explanation, JSON.stringify(a.details || {})]);
  await client.query('commit');
- return json(res, 200, { ok: true, import_id: importId, workspace_id: workspaceId, row_count: rows.length, valid_row_count: valid.length, rejected_row_count: rejected, anomaly_count: anomalies.length });
+ return json(res, 200, { ok: true, import_id: importId, workspace_id: workspaceId, row_count: rows.length, valid_row_count: valid.length, rejected_row_count: rejected, quality_report: qualityReport, anomaly_count: anomalies.length });
  } catch (err) {
  await client.query('rollback');
  throw err;
