@@ -7,7 +7,8 @@
     "start": "python -m http.server 5173",
     "check": "node --check app.js && node --check api/health.js && node --check api/summary.js && node --check api/imports.js && node --check api/fuel/imports.js && node --check api/fuel/summary.js && node --check api/fuel/workspaces.js && node --check api/fuel/export.js && node --check db/client.js",
     "dev": "vercel dev",
-    "smoke:fuel": "node scripts/fuel-smoke-test.js"
+    "smoke:fuel": "node scripts/fuel-smoke-test.js",
+    "smoke:ui": "node scripts/ui-smoke-test.js"
   },
   "dependencies": {
     "pg": "^8.13.1"
