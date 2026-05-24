@@ -29,3 +29,9 @@
 .table-wrap{max-width:100%;overflow:auto}
 .section{scroll-margin-top:22px}
 @media(max-width:1100px){.insight-grid{grid-template-columns:1fr}.chart-card canvas,.chart-card.wide canvas{height:280px!important;max-height:280px!important}}.workspace-tools{margin-top:18px;display:grid;gap:8px}.workspace-tools label{display:grid;gap:6px;color:var(--muted);font-size:.85rem}.workspace-tools select,.workspace-tools input{width:100%;border:1px solid var(--line);background:rgba(255,255,255,.08);color:var(--text);border-radius:12px;padding:9px 10px}.button-ghost-small{padding:9px 12px;font-size:.88rem;border:1px solid var(--line);background:rgba(255,255,255,.06);color:var(--text);border-radius:14px;cursor:pointer}
+
+.dropzone{display:grid;place-items:center;min-height:150px;margin-top:18px;padding:22px;border:1px dashed rgba(95,208,255,.55);border-radius:24px;background:rgba(95,208,255,.06);text-align:center;cursor:pointer;transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,transform .16s ease}
+.dropzone span{color:var(--muted)}
+.dropzone:hover{border-color:rgba(95,208,255,.82);background:rgba(95,208,255,.10)}
+.dropzone.drag,.dropzone.active{border-color:var(--brand2);background:rgba(139,227,123,.12);box-shadow:0 0 0 4px rgba(139,227,123,.12);transform:translateY(-1px)}
+.dropzone:focus-visible{outline:3px solid rgba(95,208,255,.75);outline-offset:4px}
