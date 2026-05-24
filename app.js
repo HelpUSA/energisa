@@ -118,6 +118,47 @@ function rowStatus(row) {
   if (row.liters === null) missing.push('litros');
   return missing.length ? 'Pendente: ' + missing.join(', ') : 'Válida';
 }
+const rejectionReasonLabels = {
+  metric_label_vehicle: 'veículo contém rótulo de métrica',
+  missing_vehicle: 'veículo ausente',
+  missing_date: 'data ausente',
+  missing_liters: 'litros ausentes',
+};
+function isMetricLabelVehicle(value) {
+  const compact = norm(value).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return ['KML', 'KMPL', 'LITRO', 'LITROS', 'TOTAL', 'R', 'RS', 'VALOR', 'PRECO', 'PREO', 'MEDIA', 'MDIA'].includes(compact);
+}
+function rowRejectionReasons(row) {
+  const reasons = [];
+  if (isMetricLabelVehicle(row.vehicle_plate)) reasons.push('metric_label_vehicle');
+  if (!row.vehicle_plate) reasons.push('missing_vehicle');
+  if (!row.fuel_date) reasons.push('missing_date');
+  if (row.liters === null) reasons.push('missing_liters');
+  return reasons;
+}
+function countRejectionReasons(rows) {
+  return (rows || []).reduce((counts, row) => {
+    rowRejectionReasons(row).forEach((reason) => {
+      counts[reason] = (counts[reason] || 0) + 1;
+    });
+    return counts;
+  }, {});
+}
+function getRejectedReasonCounts(result) {
+  return (result && result.quality_report && result.quality_report.rejected_reason_counts) || (result && result.rejected_reason_counts) || {};
+}
+function renderRejectionReasons(reasonCounts) {
+  const el = $('importRejectionReasons');
+  if (!el) return;
+  const entries = Object.entries(reasonCounts || {}).filter(([, count]) => Number(count) > 0);
+  if (!entries.length) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  el.hidden = false;
+  el.innerHTML = `<strong>Motivos de rejeição</strong><ul>${entries.map(([reason, count]) => `<li><span>${escapeHtml(rejectionReasonLabels[reason] || reason)}</span><strong>${fmtNumber(count)}</strong></li>`).join('')}</ul>`;
+}
 function renderPreview(parsed) {
   const previewRows = $('previewRows');
   const previewWrap = $('previewWrap');
