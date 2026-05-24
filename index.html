@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>HelpUS | Auditoria de abastecimento</title>
-  <meta name="description" content="Dashboard HelpUS para importar planilhas de abastecimento de veÃ­culos e detectar anomalias de frota." />
+  <meta name="description" content="Dashboard HelpUS para importar planilhas de abastecimento de veículos e detectar anomalias de frota." />
   <link rel="icon" href="img/helpus-icon.png" />
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -24,11 +24,11 @@
         <a href="#dashboard">Dashboard</a>
         <a href="#importar">Importar planilha</a>
         <a href="#anomalias">Anomalias</a>
-        <a href="#veiculos">VeÃ­culos</a>
+        <a href="#veiculos">Veículos</a>
       </nav>
       <div class="status-card">
         <strong>Objetivo</strong>
-        <small>Detectar padrÃµes suspeitos em abastecimentos por veÃ­culo, motorista, hodÃ´metro, litros e valor.</small>
+        <small>Detectar padrões suspeitos em abastecimentos por veículo, motorista, hodômetro, litros e valor.</small>
       </div>
     </aside>
 
@@ -36,8 +36,8 @@
       <section class="hero">
         <div>
           <p class="eyebrow">Auditoria de frota</p>
-          <h1>Abastecimentos de veÃ­culos com anÃ¡lise de anomalias</h1>
-          <p class="hero-copy">Importe CSV, XLS ou XLSX, salve o histÃ³rico por estudo e acompanhe Km/L, custo por km, volumes, preÃ§os e registros suspeitos.</p>
+          <h1>Abastecimentos de veículos com análise de anomalias</h1>
+          <p class="hero-copy">Importe CSV, XLS ou XLSX, salve o histórico por estudo e acompanhe Km/L, custo por km, volumes, preços e registros suspeitos.</p>
           <div class="actions">
             <label class="button primary" for="fileInput">Importar planilha</label>
             <button class="button ghost" id="refreshBtn" type="button">Atualizar painel</button><button class=button-ghost-small id=exportAnomaliesBtn type=button>Exportar anomalias</button><button class=button-ghost-small id=exportEventsBtn type=button>Exportar eventos</button>
@@ -53,24 +53,24 @@
       <section id="dashboard" class="section">
         <div class="section-head">
           <div>
-            <p class="eyebrow">VisÃ£o geral</p>
+            <p class="eyebrow">Visão geral</p>
             <h2>Dashboard</h2>
           </div>
-          <span class="pill" id="workspaceLabel">Workspace padrÃ£o</span>
+          <span class="pill" id="workspaceLabel">Workspace padrão</span>
         </div>
 
         <div class="metrics">
-          <article><span>VeÃ­culos</span><strong id="metricVehicles">0</strong><small>placas detectadas</small></article>
-          <article><span>Abastecimentos</span><strong id="metricEvents">0</strong><small>registros vÃ¡lidos</small></article>
+          <article><span>Veículos</span><strong id="metricVehicles">0</strong><small>placas detectadas</small></article>
+          <article><span>Abastecimentos</span><strong id="metricEvents">0</strong><small>registros válidos</small></article>
           <article><span>Litros</span><strong id="metricLiters">0</strong><small>volume total</small></article>
           <article><span>Valor total</span><strong id="metricTotal">R$ 0,00</strong><small>gasto auditado</small></article>
-          <article><span>Km/L mÃ©dio</span><strong id="metricKmpl">-</strong><small>quando hÃ¡ hodÃ´metro</small></article>
+          <article><span>Km/L médio</span><strong id="metricKmpl">-</strong><small>quando há hodômetro</small></article>
           <article><span>Alertas</span><strong id="metricAlerts">0</strong><small>anomalias detectadas</small></article>
         </div>
 
         <div class="charts">
-          <article class="chart-card wide"><h3>Litros e valor por perÃ­odo</h3><canvas id="timelineChart"></canvas></article>
-          <article class="chart-card"><h3>Maiores gastos por veÃ­culo</h3><canvas id="vehicleChart"></canvas></article>
+          <article class="chart-card wide"><h3>Litros e valor por período</h3><canvas id="timelineChart"></canvas></article>
+          <article class="chart-card"><h3>Maiores gastos por veículo</h3><canvas id="vehicleChart"></canvas></article>
         </div>
       </section>
 
@@ -80,20 +80,20 @@
             <p class="eyebrow">Entrada de dados</p>
             <h2>Importar planilha de abastecimento</h2>
           </div>
-          <button class="button primary" id="saveImportBtn" type="button" disabled>Salvar importaÃ§Ã£o</button>
+          <button class="button primary" id="saveImportBtn" type="button" disabled>Salvar importação</button>
         </div>
 
         <input id="fileInput" type="file" accept=".csv,.xls,.xlsx" hidden />
         <div id="dropzone" class="dropzone">
           <strong>Arraste uma planilha aqui ou clique para selecionar</strong>
-          <span>Campos esperados: placa, data, hodÃ´metro, litros, valor, preÃ§o por litro, motorista, posto e combustÃ­vel.</span>
+          <span>Campos esperados: placa, data, hodômetro, litros, valor, preço por litro, motorista, posto e combustível.</span>
         </div>
 
         <div class="import-summary" id="importSummary" hidden></div>
 
         <div class="table-wrap preview" id="previewWrap" hidden>
           <table>
-            <thead><tr><th>Placa</th><th>Data</th><th>HodÃ´metro</th><th>Litros</th><th>Total</th><th>Motorista</th><th>Posto</th><th>Status</th></tr></thead>
+            <thead><tr><th>Placa</th><th>Data</th><th>Hodômetro</th><th>Litros</th><th>Total</th><th>Motorista</th><th>Posto</th><th>Status</th></tr></thead>
             <tbody id="previewRows"></tbody>
           </table>
         </div>
@@ -109,7 +109,7 @@
         </div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Risco</th><th>Severidade</th><th>VeÃ­culo</th><th>Data</th><th>Tipo</th><th>ExplicaÃ§Ã£o</th></tr></thead>
+            <thead><tr><th>Risco</th><th>Severidade</th><th>Veículo</th><th>Data</th><th>Tipo</th><th>Explicação</th></tr></thead>
             <tbody id="anomalyRows"></tbody>
           </table>
         </div>
@@ -119,19 +119,19 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Frota</p>
-            <h2>VeÃ­culos e eventos recentes</h2>
+            <h2>Veículos e eventos recentes</h2>
           </div>
         </div>
         <div class="split">
           <div class="table-wrap">
             <table>
-              <thead><tr><th>VeÃ­culo</th><th>Eventos</th><th>Litros</th><th>Total</th><th>Km/L mÃ©dio</th></tr></thead>
+              <thead><tr><th>Veículo</th><th>Eventos</th><th>Litros</th><th>Total</th><th>Km/L médio</th></tr></thead>
               <tbody id="vehicleRows"></tbody>
             </table>
           </div>
           <div class="table-wrap">
             <table>
-              <thead><tr><th>Data</th><th>VeÃ­culo</th><th>Litros</th><th>Total</th><th>Km/L</th></tr></thead>
+              <thead><tr><th>Data</th><th>Veículo</th><th>Litros</th><th>Total</th><th>Km/L</th></tr></thead>
               <tbody id="eventRows"></tbody>
             </table>
           </div>
