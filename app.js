@@ -250,6 +250,12 @@ function bind() {
   if (fileInput) fileInput.addEventListener('change', (event) => openFile(event.target.files && event.target.files[0]));
   if (dropzone) {
     dropzone.addEventListener('click', () => fileInput && fileInput.click());
+    dropzone.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        fileInput && fileInput.click();
+      }
+    });
     dropzone.addEventListener('dragover', (event) => { event.preventDefault(); dropzone.classList.add('drag'); });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
     dropzone.addEventListener('drop', (event) => {
